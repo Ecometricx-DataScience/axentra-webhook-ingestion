@@ -1,0 +1,114 @@
+{
+  "product_create": {
+    "products": {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Test Product",
+      "description": "Test Description",
+      "dosage_instructions": "Take with food",
+      "manufacturer": "Test Manufacturer",
+      "needs_prescription": false,
+      "needs_telemed": true,
+      "store_id": "223e4567-e89b-12d3-a456-426614174000",
+      "user_id": "323e4567-e89b-12d3-a456-426614174000",
+      "category_ids": ["423e4567-e89b-12d3-a456-426614174000"],
+      "status": "active",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-02T00:00:00Z",
+      "archived_at": null,
+      "product_variants": [
+        {
+          "id": "523e4567-e89b-12d3-a456-426614174000",
+          "product_id": "123e4567-e89b-12d3-a456-426614174000",
+          "name": "Variant 1",
+          "variant_name": "Standard",
+          "price": 29.99,
+          "image_url": "https://example.com/image.jpg",
+          "sku": "TEST-SKU-001",
+          "stock_quantity": 100,
+          "is_default": true,
+          "stockStatus": "In Stock",
+          "status": "NEW",
+          "archived_at": null,
+          "lab_test_codes_id": ["623e4567-e89b-12d3-a456-426614174000"],
+          "service_product_id": "723e4567-e89b-12d3-a456-426614174000",
+          "cpr_price": 25.99
+        }
+      ],
+      "categories": [
+        {
+          "id": "823e4567-e89b-12d3-a456-426614174000",
+          "name": "Category 1",
+          "is_featured": true,
+          "store_id": "223e4567-e89b-12d3-a456-426614174000",
+          "user_id": "323e4567-e89b-12d3-a456-426614174000",
+          "created_at": "2024-01-01T00:00:00Z",
+          "last_modified": "2024-01-02T00:00:00Z",
+          "image": "https://example.com/cat.jpg"
+        }
+      ]
+    }
+  },
+  "product_delete": {
+    "products": {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Test Product",
+      "archived_at": "2024-01-15T00:00:00Z"
+    }
+  },
+  "minimal": {
+    "products": {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Minimal Product"
+    }
+  },
+  "exact_schema": {
+    "products": {
+      "id": "123e4567-e89b-12d3-a456-426614174000",
+      "name": "Test Product",
+      "description": "Test Description",
+      "dosage_instructions": "Take with food",
+      "manufacturer": "Test Manufacturer",
+      "needs_prescription": false,
+      "needs_telemed": true,
+      "store_id": "223e4567-e89b-12d3-a456-426614174000",
+      "user_id": "323e4567-e89b-12d3-a456-426614174000",
+      "category_ids": ["423e4567-e89b-12d3-a456-426614174000"],
+      "status": "active",
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-02T00:00:00Z",
+      "archived_at": null,
+      "product_variants": [
+        {
+          "id": "523e4567-e89b-12d3-a456-426614174000",
+          "product_id": "123e4567-e89b-12d3-a456-426614174000",
+          "name": "Variant 1",
+          "variant_name": "Standard",
+          "price": 29.99,
+          "image_url": "https://example.com/image.jpg",
+          "sku": "TEST-SKU-001",
+          "stock_quantity": 100,
+          "is_default": true,
+          "stockStatus": "In Stock",
+          "status": "NEW",
+          "archived_at": null,
+          "lab_test_codes_id": ["623e4567-e89b-12d3-a456-426614174000"],
+          "service_product_id": "723e4567-e89b-12d3-a456-426614174000",
+          "cpr_price": 25.99
+        }
+      ],
+      "categories": [
+        {
+          "id": "823e4567-e89b-12d3-a456-426614174000",
+          "name": "Category 1",
+          "is_featured": true,
+          "store_id": "223e4567-e89b-12d3-a456-426614174000",
+          "user_id": "323e4567-e89b-12d3-a456-426614174000",
+          "created_at": "2024-01-01T00:00:00Z",
+          "last_modified": "2024-01-02T00:00:00Z",
+          "image": "https://example.com/cat.jpg"
+        }
+      ]
+    }
+  }
+}
+
