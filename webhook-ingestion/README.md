@@ -52,11 +52,11 @@ webhook-ingestion/
 ├── infrastructure/
 │   ├── setup-infrastructure.sh  # Main setup script
 │   ├── setup-s3-bucket.sh       # S3 bucket setup
+│   ├── setup-s3-processed-bucket.sh  # S3 processed bucket setup
 │   ├── setup-dynamodb.sh        # DynamoDB table setup
 │   ├── setup-iam-role.sh         # IAM role setup
 │   ├── setup-lambda.sh           # Lambda deployment
-│   ├── setup-eventbridge.sh     # EventBridge setup
-│   └── cleanup-infrastructure.sh # Cleanup script
+│   └── setup-eventbridge.sh     # EventBridge setup
 ├── config/
 │   ├── lambda-trust-policy.json      # IAM trust policy
 │   └── lambda-permissions-policy.json # IAM permissions policy
@@ -129,17 +129,6 @@ aws lambda invoke \
   --region us-east-1 \
   response.json
 ```
-
-## Cleanup
-
-To remove all created resources:
-
-```bash
-cd webhook-ingestion/infrastructure
-./cleanup-infrastructure.sh
-```
-
-**Warning:** This will delete all data including S3 objects and DynamoDB records.
 
 ## Documentation
 

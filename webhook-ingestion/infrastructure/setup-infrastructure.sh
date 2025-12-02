@@ -16,28 +16,32 @@ echo ""
 # Make all scripts executable
 chmod +x "${SCRIPT_DIR}"/*.sh
 
-# Step 1: Setup S3 bucket
-echo "Step 1/6: Setting up S3 bucket..."
+# Step 1: Setup S3 buckets
+echo "Step 1/7: Setting up S3 raw audit bucket..."
 "${SCRIPT_DIR}/setup-s3-bucket.sh"
 echo ""
 
+echo "Step 1b/7: Setting up S3 processed bucket..."
+"${SCRIPT_DIR}/setup-s3-processed-bucket.sh"
+echo ""
+
 # Step 2: Setup DynamoDB table
-echo "Step 2/6: Setting up DynamoDB table..."
+echo "Step 2/7: Setting up DynamoDB table..."
 "${SCRIPT_DIR}/setup-dynamodb.sh"
 echo ""
 
 # Step 3: Setup IAM role
-echo "Step 3/6: Setting up IAM role..."
+echo "Step 3/7: Setting up IAM role..."
 "${SCRIPT_DIR}/setup-iam-role.sh"
 echo ""
 
 # Step 4: Setup Lambda function
-echo "Step 4/6: Setting up Lambda function..."
+echo "Step 4/7: Setting up Lambda function..."
 "${SCRIPT_DIR}/setup-lambda.sh"
 echo ""
 
 # Step 5: Setup EventBridge
-echo "Step 5/6: Setting up EventBridge..."
+echo "Step 5/7: Setting up EventBridge..."
 "${SCRIPT_DIR}/setup-eventbridge.sh"
 echo ""
 
@@ -47,7 +51,8 @@ echo "Setup Complete!"
 echo "=========================================="
 echo ""
 echo "Created Resources:"
-echo "  - S3 Bucket: axentra-webhook-raw-audit"
+echo "  - S3 Raw Audit Bucket: axentra-webhook-raw-audit"
+echo "  - S3 Processed Bucket: axentra-webhook-processed"
 echo "  - DynamoDB Table: axentra-webhook-events"
 echo "  - IAM Role: axentra-webhook-processor-role"
 echo "  - Lambda Function: axentra-webhook-processor"
@@ -59,7 +64,5 @@ echo "  2. Update EventBridge connection with actual authentication credentials"
 echo "  3. Test the webhook endpoint with a sample payload"
 echo "  4. Configure downstream routing targets"
 echo ""
-echo "To clean up all resources, run:"
-echo "  ${SCRIPT_DIR}/cleanup-infrastructure.sh"
 echo ""
 

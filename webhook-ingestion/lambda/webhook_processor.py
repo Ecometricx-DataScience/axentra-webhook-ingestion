@@ -15,7 +15,8 @@ s3_client = boto3.client('s3')
 dynamodb = boto3.resource('dynamodb')
 
 # Environment variables
-S3_BUCKET = os.environ.get('S3_RAW_AUDIT_BUCKET')
+S3_RAW_BUCKET = os.environ.get('S3_RAW_AUDIT_BUCKET')
+S3_PROCESSED_BUCKET = os.environ.get('S3_PROCESSED_BUCKET')
 DYNAMODB_TABLE_NAME = os.environ.get('DYNAMODB_TABLE_NAME')
 EVENT_VERSION = os.environ.get('EVENT_VERSION', '1.0')
 
@@ -230,7 +231,7 @@ def store_raw_payload(payload: Dict[str, Any], event_type: str, event_id: str) -
     
     try:
         s3_client.put_object(
-            Bucket=S3_BUCKET,
+            Bucket=S3_RAW_BUCKET,
             Key=s3_key,
             Body=json.dumps(payload, indent=2),
             ContentType='application/json',
@@ -240,6 +241,41 @@ def store_raw_payload(payload: Dict[str, Any], event_type: str, event_id: str) -
         return s3_key
     except Exception as e:
         logger.error(f"Error storing raw payload to S3: {str(e)}")
+        raise
+
+
+def store_processed_payload(payload: Dict[str, Any], event_type: str, event_id: str) -> str:
+    """
+    Store processed/stripped payload to S3 with date-based partitioning.
+    
+    Args:
+        payload: The processed/stripped webhook payload
+        event_type: The detected event type
+        event_id: Unique event identifier
+        
+    Returns:
+        S3 key where the processed payload was stored
+    """
+    now = datetime.utcnow()
+    year = now.strftime('%Y')
+    month = now.strftime('%m')
+    day = now.strftime('%d')
+    
+    # S3 key: {event_type}/{year}/{month}/{day}/{event_id}.json
+    s3_key = f"{event_type}/{year}/{month}/{day}/{event_id}.json"
+    
+    try:
+        s3_client.put_object(
+            Bucket=S3_PROCESSED_BUCKET,
+            Key=s3_key,
+            Body=json.dumps(payload, indent=2),
+            ContentType='application/json',
+            ServerSideEncryption='AES256'
+        )
+        logger.info(f"Stored processed payload to S3: {s3_key}")
+        return s3_key
+    except Exception as e:
+        logger.error(f"Error storing processed payload to S3: {str(e)}")
         raise
 
 
@@ -368,8 +404,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         event_type = detect_event_type(raw_payload)
         logger.info(f"Detected event type: {event_type}")
         
-        # Store raw payload to S3
-        s3_key = store_raw_payload(raw_payload, event_type, event_id)
+        # Store raw payload to S3 (immutable audit trail)
+        raw_s3_key = store_raw_payload(raw_payload, event_type, event_id)
         
         # Strip unnecessary fields
         stripped_payload = strip_fields(raw_payload)
@@ -377,6 +413,9 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         
         # Enrich with metadata
         enriched_payload = enrich_payload(stripped_payload, payload_hash, event_type)
+        
+        # Store processed payload to S3
+        processed_s3_key = store_processed_payload(enriched_payload, event_type, event_id)
         
         # Determine routing target
         routing_target = get_routing_target(event_type)
@@ -387,7 +426,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             payload_hash=payload_hash,
             event_id=event_id,
             event_type=event_type,
-            s3_key=s3_key,
+            s3_key=raw_s3_key,  # Store raw S3 key for audit trail reference
             routing_target=routing_target,
             table=table
         )
@@ -402,7 +441,8 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 'event_id': event_id,
                 'event_type': event_type,
                 'routing_target': routing_target,
-                's3_key': s3_key,
+                'raw_s3_key': raw_s3_key,
+                'processed_s3_key': processed_s3_key,
                 'payload_hash': payload_hash
             })
         }

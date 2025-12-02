@@ -16,7 +16,8 @@ LAMBDA_DIR="$(cd "${SCRIPT_DIR}/../lambda" && pwd)"
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 ROLE_NAME="axentra-webhook-processor-role"
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${ROLE_NAME}"
-S3_BUCKET="axentra-webhook-raw-audit"
+S3_RAW_BUCKET="axentra-webhook-raw-audit"
+S3_PROCESSED_BUCKET="axentra-webhook-processed"
 DYNAMODB_TABLE="axentra-webhook-events"
 
 echo "Setting up Lambda function: ${FUNCTION_NAME}"
@@ -40,7 +41,8 @@ if aws lambda get-function --function-name "${FUNCTION_NAME}" --region "${REGION
         --timeout "${TIMEOUT}" \
         --memory-size "${MEMORY_SIZE}" \
         --environment "Variables={
-            S3_RAW_AUDIT_BUCKET=${S3_BUCKET},
+            S3_RAW_AUDIT_BUCKET=${S3_RAW_BUCKET},
+            S3_PROCESSED_BUCKET=${S3_PROCESSED_BUCKET},
             DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE},
             EVENT_VERSION=1.0
         }" \
@@ -57,7 +59,8 @@ else
         --memory-size "${MEMORY_SIZE}" \
         --description "Process webhook events from Axentra Health, strip fields, and store in S3" \
         --environment "Variables={
-            S3_RAW_AUDIT_BUCKET=${S3_BUCKET},
+            S3_RAW_AUDIT_BUCKET=${S3_RAW_BUCKET},
+            S3_PROCESSED_BUCKET=${S3_PROCESSED_BUCKET},
             DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE},
             EVENT_VERSION=1.0
         }" \

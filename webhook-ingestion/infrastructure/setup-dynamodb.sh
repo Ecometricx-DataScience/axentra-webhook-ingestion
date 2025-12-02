@@ -50,3 +50,5 @@ echo "Table name: ${TABLE_NAME}"
 echo "Region: ${REGION}"
 
 
+
+

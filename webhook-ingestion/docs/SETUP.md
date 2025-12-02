@@ -181,16 +181,6 @@ aws logs tail /aws/lambda/axentra-webhook-processor --follow
 3. Verify EventBridge rule is enabled
 4. Check Lambda function permissions for EventBridge
 
-## Cleanup
-
-To remove all created resources:
-
-```bash
-./cleanup-infrastructure.sh
-```
-
-**Warning:** This will delete all data including S3 objects and DynamoDB records.
-
 ## Post-Setup Configuration
 
 ### 1. Configure Supabase Webhook

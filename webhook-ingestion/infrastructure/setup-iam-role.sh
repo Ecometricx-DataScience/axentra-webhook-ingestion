@@ -48,3 +48,5 @@ echo "Role name: ${ROLE_NAME}"
 echo "Role ARN: $(aws iam get-role --role-name ${ROLE_NAME} --query 'Role.Arn' --output text)"
 
 
+
+

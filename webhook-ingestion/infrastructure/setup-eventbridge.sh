@@ -104,3 +104,5 @@ echo "Rule name: ${RULE_NAME}"
 echo "Note: Update API destination endpoint and authentication with actual Supabase webhook details"
 
 
+
+

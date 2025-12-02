@@ -11,6 +11,15 @@
       "Resource": "arn:aws:s3:::axentra-webhook-raw-audit/*"
     },
     {
+      "Sid": "S3ProcessedBucketAccess",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject"
+      ],
+      "Resource": "arn:aws:s3:::axentra-webhook-processed/*"
+    },
+    {
       "Sid": "DynamoDBEventRegistryAccess",
       "Effect": "Allow",
       "Action": [
