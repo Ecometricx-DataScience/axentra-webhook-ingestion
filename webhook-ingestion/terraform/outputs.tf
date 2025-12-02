@@ -68,8 +68,8 @@ output "eventbridge_connection_name" {
 }
 
 output "eventbridge_api_destination_arn" {
-  description = "ARN of the EventBridge API destination"
-  value       = aws_cloudwatch_event_api_destination.webhook.arn
+  description = "ARN of the EventBridge API destination (null if not created)"
+  value       = length(aws_cloudwatch_event_api_destination.webhook) > 0 ? aws_cloudwatch_event_api_destination.webhook[0].arn : null
 }
 
 # CloudWatch Outputs

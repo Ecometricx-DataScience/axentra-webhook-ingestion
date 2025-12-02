@@ -51,6 +51,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "raw_audit" {
     id     = "TransitionToGlacierAndDelete"
     status = "Enabled"
 
+    filter {}
+
     transition {
       days          = var.s3_glacier_transition_days
       storage_class = "GLACIER"

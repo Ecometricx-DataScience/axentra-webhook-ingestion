@@ -17,8 +17,10 @@ resource "aws_cloudwatch_event_connection" "webhook" {
   }
 }
 
-# EventBridge API destination
+# EventBridge API destination (only created if a valid URL is provided, not a placeholder)
 resource "aws_cloudwatch_event_api_destination" "webhook" {
+  count = !can(regex("PLACEHOLDER", var.webhook_endpoint_url)) && can(regex("^https://", var.webhook_endpoint_url)) ? 1 : 0
+
   name                             = var.eventbridge_api_destination_name
   description                      = "API destination for Axentra webhooks"
   invocation_endpoint              = var.webhook_endpoint_url
