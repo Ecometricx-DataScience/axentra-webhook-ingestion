@@ -25,7 +25,8 @@ else
     aws iam create-role \
         --role-name "${ROLE_NAME}" \
         --assume-role-policy-document "file://${TRUST_POLICY}" \
-        --description "Execution role for Axentra webhook processor Lambda function"
+        --description "Execution role for Axentra webhook processor Lambda function" \
+        --tags "Key=Project,Value=Axentra Health" "Key=Environment,Value=Production" "Key=ManagedBy,Value=CLI" "Key=Purpose,Value=Lambda Execution Role"
     
     echo "Role ${ROLE_NAME} created"
 fi

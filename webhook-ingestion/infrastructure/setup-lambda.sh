@@ -58,6 +58,7 @@ else
         --timeout "${TIMEOUT}" \
         --memory-size "${MEMORY_SIZE}" \
         --description "Process webhook events from Axentra Health, strip fields, and store in S3" \
+        --tags "Project=Axentra Health,Environment=Production,ManagedBy=CLI,Purpose=Webhook Processing" \
         --environment "Variables={
             S3_RAW_AUDIT_BUCKET=${S3_RAW_BUCKET},
             S3_PROCESSED_BUCKET=${S3_PROCESSED_BUCKET},
@@ -65,7 +66,7 @@ else
             EVENT_VERSION=1.0
         }" \
         --region "${REGION}" \
-        --tags "Project=AxentraWebhookIngestion,Environment=Production"
+        --tags "Project=Axentra Health,Environment=Production,ManagedBy=CLI,Purpose=Webhook Processing"
     
     echo "Waiting for function to be active..."
     aws lambda wait function-active \

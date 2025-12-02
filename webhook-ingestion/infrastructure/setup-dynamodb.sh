@@ -26,8 +26,10 @@ else
         --billing-mode PAY_PER_REQUEST \
         --region "${REGION}" \
         --tags \
-            Key=Project,Value=AxentraWebhookIngestion \
-            Key=Environment,Value=Production
+            Key=Project,Value="Axentra Health" \
+            Key=Environment,Value=Production \
+            Key=ManagedBy,Value=CLI \
+            Key=Purpose,Value=Webhook Event Registry
 
     echo "Waiting for table to be active..."
     aws dynamodb wait table-exists \

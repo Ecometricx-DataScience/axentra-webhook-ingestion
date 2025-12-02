@@ -80,6 +80,12 @@ aws s3api put-bucket-lifecycle-configuration \
 
 rm /tmp/lifecycle-policy.json
 
+# Add tags
+echo "Adding tags to bucket..."
+aws s3api put-bucket-tagging \
+    --bucket "${BUCKET_NAME}" \
+    --tagging 'TagSet=[{Key=Project,Value=Axentra Health},{Key=Environment,Value=Production},{Key=ManagedBy,Value=CLI},{Key=Purpose,Value=Webhook Raw Audit}]'
+
 echo "S3 bucket setup complete!"
 echo "Bucket name: ${BUCKET_NAME}"
 echo "Region: ${REGION}"

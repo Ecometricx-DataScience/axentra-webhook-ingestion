@@ -38,6 +38,15 @@ else
             }
         }" \
         --region "${REGION}" || echo "Note: Connection creation may require manual configuration"
+    
+    # Tag connection (if it was created)
+    if aws events describe-connection --name "${CONNECTION_NAME}" --region "${REGION}" 2>/dev/null; then
+        echo "Tagging connection..."
+        aws events tag-resource \
+            --resource-arn "$(aws events describe-connection --name "${CONNECTION_NAME}" --region "${REGION}" --query 'ConnectionArn' --output text)" \
+            --tags "Key=Project,Value=Axentra Health" "Key=Environment,Value=Production" "Key=ManagedBy,Value=CLI" "Key=Purpose,Value=Webhook Connection" \
+            --region "${REGION}" 2>/dev/null || echo "Note: Tagging may not be supported for connections"
+    fi
 fi
 
 # Get connection ARN
@@ -78,6 +87,14 @@ else
             "detail-type": ["Axentra Webhook Event"]
         }' \
         --region "${REGION}"
+    
+    # Tag rule
+    echo "Tagging rule..."
+    RULE_ARN="arn:aws:events:${REGION}:${ACCOUNT_ID}:rule/${RULE_NAME}"
+    aws events tag-resource \
+        --resource-arn "${RULE_ARN}" \
+        --tags "Key=Project,Value=Axentra Health" "Key=Environment,Value=Production" "Key=ManagedBy,Value=CLI" "Key=Purpose,Value=Webhook Routing" \
+        --region "${REGION}" 2>/dev/null || echo "Note: Tagging may have failed"
     
     echo "Rule ${RULE_NAME} created"
 fi
