@@ -1,0 +1,45 @@
+# -----------------------------------------------------------------------------
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and update with your values
+# -----------------------------------------------------------------------------
+
+# AWS Configuration
+aws_region  = "us-east-1"
+environment = "Production"
+
+# Resource Naming
+project_name = "axentra-webhook"
+
+# S3 Configuration
+s3_bucket_name             = "axentra-webhook-raw-audit"
+s3_glacier_transition_days = 90
+s3_expiration_days         = 2555  # 7 years for HIPAA compliance
+
+# DynamoDB Configuration
+dynamodb_table_name = "axentra-webhook-events"
+
+# Lambda Configuration
+lambda_function_name = "axentra-webhook-processor"
+lambda_runtime       = "python3.13"
+lambda_timeout       = 60
+lambda_memory_size   = 256
+event_version        = "1.0"
+
+# EventBridge Configuration
+eventbridge_rule_name            = "axentra-webhook-rule"
+eventbridge_connection_name      = "axentra-webhook-connection"
+eventbridge_api_destination_name = "axentra-webhook-endpoint"
+
+# IMPORTANT: Update these with actual values before deployment
+webhook_api_key          = "PLACEHOLDER_UPDATE_WITH_ACTUAL_KEY"
+webhook_endpoint_url     = "https://PLACEHOLDER_UPDATE_WITH_SUPABASE_WEBHOOK_URL"
+api_invocation_rate_limit = 10
+
+# Data Engineer Role Configuration
+# Users who can assume the axentra-data-engineer role
+data_engineer_users = [
+  "Alex.Ledbetter",
+  "catalin",
+  "conrad",
+  "Benjamin-Westrich"
+]
