@@ -44,7 +44,7 @@ if aws lambda get-function --function-name "${FUNCTION_NAME}" --region "${REGION
             S3_RAW_AUDIT_BUCKET=${S3_RAW_BUCKET},
             S3_PROCESSED_BUCKET=${S3_PROCESSED_BUCKET},
             DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE},
-            EVENT_VERSION=1.0
+            EVENT_VERSION=1.0${KB_REFRESH_TOPIC_ARN:+,KB_REFRESH_SNS_TOPIC=${KB_REFRESH_TOPIC_ARN}}
         }" \
         --region "${REGION}"
 else
@@ -63,7 +63,7 @@ else
             S3_RAW_AUDIT_BUCKET=${S3_RAW_BUCKET},
             S3_PROCESSED_BUCKET=${S3_PROCESSED_BUCKET},
             DYNAMODB_TABLE_NAME=${DYNAMODB_TABLE},
-            EVENT_VERSION=1.0
+            EVENT_VERSION=1.0${KB_REFRESH_TOPIC_ARN:+,KB_REFRESH_SNS_TOPIC=${KB_REFRESH_TOPIC_ARN}}
         }" \
         --region "${REGION}" \
         --tags "Project=Axentra Health,Environment=Production,ManagedBy=CLI,Purpose=Webhook Processing"

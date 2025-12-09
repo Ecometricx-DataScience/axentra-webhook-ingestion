@@ -1,0 +1,13 @@
+{
+  "event_type": "new_product",
+  "products": {
+    "name": "Test Product Without ID",
+    "store_id": "223e4567-e89b-12d3-a456-426614174000",
+    "product_variants": [
+      {
+        "price": 29.99
+      }
+    ]
+  }
+}
+

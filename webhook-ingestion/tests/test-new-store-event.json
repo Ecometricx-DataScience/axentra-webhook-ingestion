@@ -1,0 +1,15 @@
+{
+  "event_type": "product_create",
+  "products": {
+    "name": "Test Product for New Store",
+    "product_id": "999e9999-e99b-99d9-a999-999999999999",
+    "store_id": "888e8888-e88b-88d8-a888-888888888888",
+    "store_domain": "new-store-that-doesnt-exist.myshopify.com",
+    "product_variants": [
+      {
+        "price": 39.99
+      }
+    ]
+  }
+}
+
