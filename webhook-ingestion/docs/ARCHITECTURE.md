@@ -26,14 +26,26 @@ The Axentra Webhook Ingestion System is a HIPAA-compliant pipeline designed to r
 │  Processor      │
 └──────┬──────────┘
        │
-       ├──────────────┬──────────────┬──────────────┐
-       ▼              ▼              ▼              ▼
-┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
-│   S3     │  │ DynamoDB │  │   S3     │  │   SNS     │
-│  Raw     │  │ Registry │  │ Processed│  │ KB Refresh│
-│  Audit   │  │          │  │ Catalogs │  │  Trigger  │
-└──────────┘  └──────────┘  └──────────┘  └──────────┘
-```
+       ├──────────────┬──────────────┬──────────────┬──────────────┐
+       ▼              ▼              ▼              ▼              ▼
+┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+│   S3     │  │ DynamoDB │  │   S3     │  │ DynamoDB │  │   SNS     │
+│  Raw     │  │ Registry │  │ Processed│  │ Ben's    │  │ KB Refresh│
+│  Audit   │  │ (Ours)   │  │ Catalogs │  │ Tables   │  │  Trigger  │
+└──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
+                                      │
+                                      ▼
+                              ┌──────────────┐
+                              │  Stores      │
+                              │  Products    │
+                              │ (Source of   │
+                              │   Truth)     │
+                              └──────────────┘
+
+**Integration with Ben's Infrastructure:**
+- Lambda checks/writes to Ben's DynamoDB tables (`axentra-stores`, `Product-kbtwy4tflncitfudusepuzm4nq-NONE`) as source of truth
+- Our S3 buckets remain separate for audit trails and master catalogs
+- See [BEN_INTEGRATION.md](./BEN_INTEGRATION.md) for details
 
 ## Component Details
 
@@ -60,11 +72,12 @@ The Axentra Webhook Ingestion System is a HIPAA-compliant pipeline designed to r
 - **Idempotency Check:** Uses SHA-256 hash of payload to detect duplicates
 - **Event Type Detection:** Uses explicit `event_type` field or infers from payload structure
 - **Store/Product ID Extraction:** Extracts `store_id` and `product_id` from various payload structures
-- **Auto-ID Generation:** Automatically generates `store_id` and `product_id` if missing from payload (enables multitenancy)
-- **Field Stripping:** Removes unnecessary fields before processing (handles both simplified and full payloads)
-- **Raw Payload Storage:** Stores complete payload in S3 with store_id partitioning
+- **Ben's DynamoDB Integration:** Checks Ben's tables (`axentra-stores`, `Product-kbtwy4tflncitfudusepuzm4nq-NONE`) as source of truth for validation
+- **Store/Product Existence Validation:** Validates that stores/products exist (checks Ben's DynamoDB tables first, then falls back to our S3 storage)
+- **Note:** Store and product creation is handled by backend portals, NOT by webhooks. Webhooks only validate existence and process events.
+- **Raw Payload Storage:** Stores complete payload in S3 with store_id partitioning (immutable audit trail)
 - **Store Metadata Storage:** Stores metadata file for store creation events (enables multitenancy tracking)
-- **Master Catalog Management:** Stores products to master catalog (`master/products/{product_id}.json`)
+- **Master Catalog Management:** Stores products to master catalog (`master/products/{product_id}.json`) - separate from webhook events
 - **Store Catalog Management:** Copies products from master to store catalogs with modifications
 - **KB Refresh Triggers:** Publishes to SNS topic to trigger Knowledge Base refresh
 - **Event Registration:** Records event in DynamoDB for tracking (includes store_id)
@@ -72,28 +85,38 @@ The Axentra Webhook Ingestion System is a HIPAA-compliant pipeline designed to r
 **Processing Flow:**
 1. Receive event from EventBridge
 2. Detect event type (explicit field or inference)
-3. Auto-generate store_id if missing (enables multitenancy)
-4. Auto-generate product_id if missing (for product events)
-5. Calculate payload hash
-6. Check DynamoDB for duplicate
-7. If duplicate: return early with existing event info
-8. If new: continue processing
-9. Store raw payload to S3 (with store_id partitioning)
-10. Store metadata file for store creation events (same folder, `.metadata.json` suffix)
-11. Strip unnecessary fields (if present)
-12. Enrich with metadata
-13. Store processed payload to S3
-14. Handle master/store catalog management based on event type:
-    - Product create/update: Store to master catalog, copy to store catalog
+3. Extract store_id and product_id from payload
+4. **Validate store exists** (check Ben's DynamoDB - source of truth)
+   - If store doesn't exist: Log warning (store should be created via backend portal)
+5. **Validate product exists** (check Ben's DynamoDB - source of truth, for product events only)
+   - If product doesn't exist: Log warning (product should be created via backend portal)
+6. Calculate payload hash
+7. Check our DynamoDB event registry for duplicate
+8. If duplicate: return early with existing event info
+9. If new: continue processing
+10. Store raw payload to S3 (with store_id partitioning) - **immutable audit trail**
+11. Store metadata file for store creation events (same folder, `.metadata.json` suffix)
+12. Handle master/store catalog management based on event type:
+    - Product create/update: Store to master catalog (separate from events), copy to store catalog
     - Product delete: Delete from store catalog
-15. Trigger KB refresh (if store catalog changed)
-16. Register in DynamoDB (with store_id)
-17. Route to downstream (placeholder)
+13. Trigger KB refresh (if store catalog changed)
+14. Register in our DynamoDB event registry (with store_id)
+15. Route to downstream (placeholder)
+
+**Important:** Store and product creation is handled by backend portals, NOT by webhooks. The webhook system only validates that stores/products exist and processes events for existing entities.
+
+**Note:** Master catalog is intentionally separate from webhook events. See [S3_BUCKET_SYSTEM.md](./S3_BUCKET_SYSTEM.md) for details.
 
 ### 3. S3 Buckets
 
-#### Raw Audit Bucket
+**See [S3_BUCKET_SYSTEM.md](./S3_BUCKET_SYSTEM.md) for complete bucket system breakdown.**
+
+#### Our S3 Buckets
+
+##### Raw Audit Bucket
 **Bucket Name:** `axentra-webhook-raw-audit`
+
+**Purpose:** Immutable audit trail for all webhook events
 
 **Partitioning Structure:**
 ```
@@ -103,7 +126,8 @@ The Axentra Webhook Ingestion System is a HIPAA-compliant pipeline designed to r
 
 **Example:**
 ```
-223e4567-e89b-12d3-a456-426614174000/product_create/2024/01/15/abc123def456-1705276800.json
+223e4567-e89b-12d3-a456-426614174000/product_create/2025/12/09/e8b78063c351200b-1765297638.json
+223e4567-e89b-12d3-a456-426614174000/store_create/2025/12/09/459b42f742a0be95-1765312372.metadata.json
 ```
 
 **Configuration:**
@@ -111,26 +135,24 @@ The Axentra Webhook Ingestion System is a HIPAA-compliant pipeline designed to r
 - Encryption: SSE-S3 (AES256)
 - Lifecycle:
   - Transition to Glacier after 90 days
-  - Delete after 7 years
+  - Delete after 7 years (HIPAA requirement)
 - Public Access: Blocked
 
-#### Processed Bucket
+##### Processed Bucket
 **Bucket Name:** `axentra-webhook-processed`
 
+**Purpose:** Master product catalog and store-specific catalogs (intentionally separate from webhook events)
+
 **Structures:**
-1. **Processed Webhooks:** `{store_id}/{event_type}/{year}/{month}/{day}/{event_id}.json`
-2. **Master Product Catalog:** `master/products/{product_id}.json`
-3. **Store-Specific Catalogs:** `stores/{store_id}/products/{product_id}.json`
+1. **Master Product Catalog:** `master/products/{product_id}.json`
+2. **Store-Specific Catalogs:** `stores/{store_id}/products/{product_id}.json`
 
 **Example:**
 ```
-# Processed webhook
-223e4567-e89b-12d3-a456-426614174000/product_create/2024/01/15/abc123def456-1705276800.json
-
-# Master catalog
+# Master catalog (separate from webhook events)
 master/products/123e4567-e89b-12d3-a456-426614174000.json
 
-# Store catalog
+# Store catalog (for KB refresh)
 stores/223e4567-e89b-12d3-a456-426614174000/products/123e4567-e89b-12d3-a456-426614174000.json
 ```
 
@@ -139,8 +161,34 @@ stores/223e4567-e89b-12d3-a456-426614174000/products/123e4567-e89b-12d3-a456-426
 - Encryption: SSE-S3 (AES256)
 - Public Access: Blocked
 
-### 4. DynamoDB Event Registry
+**Why Separate from Webhook Events?**
+- **Catalog Management:** Products are living entities that evolve over time
+- **Webhook Events:** Events are immutable historical records
+- **Different Lifecycles:** Catalogs are current state, events are audit trail
+- **KB Refresh:** Store catalogs trigger Knowledge Base updates independently
 
+#### Ben's S3 Bucket (Independent)
+
+##### Product JSON Bucket
+**Bucket Name:** `axentra-prod-productjson-302146782327`
+
+**Purpose:** Product JSON files synced from Ben's DynamoDB Product table
+
+**Structure:**
+```
+{productId}.json
+```
+
+**Example:**
+```
+12345.json
+```
+
+**Note:** This bucket is managed by Ben's `Axentra-Prod-StreamHandler` Lambda, which syncs DynamoDB → S3. Our system does NOT write to this bucket.
+
+### 4. DynamoDB Tables
+
+#### Our Event Registry Table
 **Table Name:** `axentra-webhook-events`
 
 **Schema:**
@@ -160,6 +208,32 @@ stores/223e4567-e89b-12d3-a456-426614174000/products/123e4567-e89b-12d3-a456-426
 - Event tracking and audit
 - Quick lookup for operational queries
 - Routing configuration management
+
+#### Ben's DynamoDB Tables (Source of Truth)
+
+**Integration:** Our Lambda checks/writes to Ben's tables for stores and products.
+
+##### Stores Table
+**Table Name:** `axentra-stores`
+
+**Schema:**
+- **Partition Key:** `store_id` (String)
+- **Attributes:**
+  - `store_domain` (String, optional)
+  - `created_at` (String)
+
+**Purpose:** Source of truth for store registry. Our Lambda checks this table first when processing store-related events.
+
+##### Product Table
+**Table Name:** `Product-kbtwy4tflncitfudusepuzm4nq-NONE`
+
+**Schema:**
+- **Partition Key:** `productId` (String)
+- **Attributes:** GraphQL-style product fields (name, form, dose, uses, mechanism, etc.)
+
+**Purpose:** Source of truth for product registry. Our Lambda checks this table first when processing product-related events.
+
+**Note:** Ben's `Axentra-Prod-StreamHandler` Lambda syncs this table to S3 bucket `axentra-prod-productjson-302146782327`.
 
 ## Data Flow
 
@@ -183,11 +257,12 @@ stores/223e4567-e89b-12d3-a456-426614174000/products/123e4567-e89b-12d3-a456-426
 - Detect event type
 
 ### 5. Catalog Management
-- **Master Catalog:** Store complete product definitions to `master/products/{product_id}.json`
+- **Ben's DynamoDB:** Check/write to Ben's Product table (source of truth)
+- **Our Master Catalog:** Store complete product definitions to `master/products/{product_id}.json` (separate from webhook events)
 - **Store Catalogs:** Copy products from master to `stores/{store_id}/products/{product_id}.json` with store-specific modifications (e.g., price)
 - **Product Lifecycle:**
-  - Create/Update: Store to master, copy to store catalog
-  - Delete: Remove from store catalog (master remains)
+  - Create/Update: Write to Ben's DynamoDB, store to our master catalog, copy to store catalog
+  - Delete: Remove from store catalog (master and DynamoDB remain)
 
 ### 6. KB Refresh Trigger
 - When store catalog changes, publish to SNS topic `axentra-kb-refresh`
@@ -386,4 +461,3 @@ The system also supports the original full payload structure with all product fi
 - S3 unlimited storage
 - EventBridge high throughput
 - Rate limiting on API destination
-

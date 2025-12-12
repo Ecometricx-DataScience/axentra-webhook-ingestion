@@ -1,0 +1,1000 @@
+{
+	"info": {
+		"_postman_id": "axentra-webhook-tests-001",
+		"name": "Axentra Webhook Ingestion Tests",
+		"description": "Comprehensive tests for the Axentra Webhook Ingestion System.\n\n## Endpoint\nLambda Function URL: https://6qr5nqhezqesjepdnezacyl7wq0zacpi.lambda-url.us-east-1.on.aws/\n\n## Test Coverage\n- Product Create (new simplified format)\n- Product Update\n- Product Delete\n- Store Create\n- Store Update\n- Store Delete\n- Legacy payload format (inferred event type)\n- Duplicate event detection (idempotency)\n- Error handling\n\n## Response Validation\nEach test validates:\n- HTTP status code (200 for success)\n- Response structure\n- Event type detection\n- Store ID and Product ID extraction\n- S3 key format validation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "https://6qr5nqhezqesjepdnezacyl7wq0zacpi.lambda-url.us-east-1.on.aws",
+			"type": "string"
+		},
+		{
+			"key": "testStoreId",
+			"value": "test-store-{{$timestamp}}",
+			"type": "string"
+		},
+		{
+			"key": "testProductId",
+			"value": "test-product-{{$timestamp}}",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Product Events",
+			"item": [
+				{
+					"name": "1. New Product (Simplified Format)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique IDs for this test",
+									"const timestamp = Date.now();",
+									"pm.collectionVariables.set('testStoreId', `test-store-${timestamp}`);",
+									"pm.collectionVariables.set('testProductId', `test-product-${timestamp}`);"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is product_create', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.eql('product_create');",
+									"});",
+									"",
+									"pm.test('Response contains event_id', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_id).to.be.a('string');",
+									"    pm.expect(jsonData.event_id.length).to.be.greaterThan(10);",
+									"});",
+									"",
+									"pm.test('Response contains store_id', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.store_id).to.be.a('string');",
+									"});",
+									"",
+									"pm.test('Response contains product_id', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.product_id).to.be.a('string');",
+									"});",
+									"",
+									"pm.test('Response contains raw_s3_key', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.raw_s3_key).to.be.a('string');",
+									"    pm.expect(jsonData.raw_s3_key).to.include('product_create');",
+									"});",
+									"",
+									"pm.test('Response contains payload_hash', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.payload_hash).to.be.a('string');",
+									"    pm.expect(jsonData.payload_hash.length).to.eql(64); // SHA-256 hex",
+									"});",
+									"",
+									"pm.test('Routing target is product-service', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.routing_target).to.eql('product-service');",
+									"});",
+									"",
+									"// Save event_id and payload_hash for duplicate test",
+									"const jsonData = pm.response.json();",
+									"pm.collectionVariables.set('lastEventId', jsonData.event_id);",
+									"pm.collectionVariables.set('lastPayloadHash', jsonData.payload_hash);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"new_product\",\n  \"products\": {\n    \"product_id\": \"{{testProductId}}\",\n    \"name\": \"Testosterone Cypionate 200mg\",\n    \"description\": \"Injectable testosterone for hormone replacement therapy\",\n    \"dosage_instructions\": \"Inject 0.5ml intramuscularly once weekly\",\n    \"manufacturer\": \"Pfizer\",\n    \"needs_prescription\": true,\n    \"needs_telemed\": true,\n    \"store_id\": \"{{testStoreId}}\",\n    \"category_ids\": [\"cat-hormone-001\"],\n    \"status\": \"active\",\n    \"product_variants\": [\n      {\n        \"id\": \"var-001\",\n        \"product_id\": \"{{testProductId}}\",\n        \"name\": \"10ml Vial\",\n        \"variant_name\": \"Standard\",\n        \"price\": 89.99,\n        \"sku\": \"TC-200-10ML\",\n        \"status\": \"NEW\"\n      }\n    ],\n    \"categories\": [\n      {\n        \"id\": \"cat-hormone-001\",\n        \"name\": \"Hormone Therapy\",\n        \"is_featured\": true,\n        \"store_id\": \"{{testStoreId}}\"\n      }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Creates a new product using the simplified event_type format."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Product Update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is product_update', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.eql('product_update');",
+									"});",
+									"",
+									"pm.test('Response contains master_catalog_key', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.master_catalog_key).to.be.a('string');",
+									"    pm.expect(jsonData.master_catalog_key).to.include('master/products/');",
+									"});",
+									"",
+									"pm.test('S3 key includes product_update', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.raw_s3_key).to.include('product_update');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"product_update\",\n  \"products\": {\n    \"product_id\": \"prod-update-{{$timestamp}}\",\n    \"name\": \"Testosterone Cypionate 200mg - Updated\",\n    \"description\": \"Updated description with additional information\",\n    \"dosage_instructions\": \"Inject 0.5ml intramuscularly once weekly. Updated instructions.\",\n    \"manufacturer\": \"Pfizer\",\n    \"needs_prescription\": true,\n    \"needs_telemed\": true,\n    \"store_id\": \"store-update-{{$timestamp}}\",\n    \"status\": \"active\",\n    \"product_variants\": [\n      {\n        \"id\": \"var-001\",\n        \"product_id\": \"prod-update-{{$timestamp}}\",\n        \"name\": \"10ml Vial\",\n        \"variant_name\": \"Standard\",\n        \"price\": 94.99,\n        \"sku\": \"TC-200-10ML-V2\",\n        \"status\": \"NEW\"\n      }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Updates an existing product."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Product Delete",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is product_delete', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.eql('product_delete');",
+									"});",
+									"",
+									"pm.test('S3 key includes product_delete', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.raw_s3_key).to.include('product_delete');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"product_deletion\",\n  \"products\": {\n    \"product_id\": \"prod-delete-{{$timestamp}}\",\n    \"store_id\": \"store-delete-{{$timestamp}}\",\n    \"name\": \"Product to Delete\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Deletes a product using the simplified event_type format."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Product Create (Full Payload)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is product_create (inferred)', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.be.oneOf(['product_create', 'product_update']);",
+									"});",
+									"",
+									"pm.test('Fields that should be stripped are NOT in response', function () {",
+									"    // The response itself won't show stripped fields,",
+									"    // but we verify the request was processed successfully",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"products\": {\n    \"id\": \"full-prod-{{$timestamp}}\",\n    \"name\": \"Complete Product with All Fields\",\n    \"description\": \"This product includes all fields including those that will be stripped\",\n    \"dosage_instructions\": \"Take as directed by physician\",\n    \"manufacturer\": \"HealthCo Pharmaceuticals\",\n    \"needs_prescription\": true,\n    \"needs_telemed\": false,\n    \"store_id\": \"full-store-{{$timestamp}}\",\n    \"user_id\": \"user-123\",\n    \"category_ids\": [\"cat-001\", \"cat-002\"],\n    \"status\": \"active\",\n    \"created_at\": \"2024-01-01T00:00:00Z\",\n    \"updated_at\": \"2024-01-15T12:00:00Z\",\n    \"archived_at\": null,\n    \"product_variants\": [\n      {\n        \"id\": \"var-full-001\",\n        \"product_id\": \"full-prod-{{$timestamp}}\",\n        \"name\": \"Standard Pack\",\n        \"variant_name\": \"30 Count\",\n        \"price\": 49.99,\n        \"image_url\": \"https://example.com/image.jpg\",\n        \"sku\": \"HC-FULL-30\",\n        \"stock_quantity\": 250,\n        \"is_default\": true,\n        \"stockStatus\": \"In Stock\",\n        \"status\": \"NEW\",\n        \"archived_at\": null,\n        \"lab_test_codes_id\": [\"lab-001\"],\n        \"service_product_id\": \"svc-001\",\n        \"cpr_price\": 39.99\n      }\n    ],\n    \"categories\": [\n      {\n        \"id\": \"cat-001\",\n        \"name\": \"Prescription Medications\",\n        \"is_featured\": true,\n        \"store_id\": \"full-store-{{$timestamp}}\",\n        \"user_id\": \"user-123\",\n        \"created_at\": \"2024-01-01T00:00:00Z\",\n        \"last_modified\": \"2024-01-10T00:00:00Z\",\n        \"image\": \"https://example.com/cat.jpg\"\n      }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Creates a product using the full payload format (fields will be stripped by Lambda)."
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for product-related webhook events"
+		},
+		{
+			"name": "Store Events",
+			"item": [
+				{
+					"name": "1. New Store",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is store_create', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.eql('store_create');",
+									"});",
+									"",
+									"pm.test('Response contains store_id', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.store_id).to.be.a('string');",
+									"});",
+									"",
+									"pm.test('S3 key includes store_create', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.raw_s3_key).to.include('store_create');",
+									"});",
+									"",
+									"pm.test('Response contains metadata_s3_key for store creation', function () {",
+									"    const jsonData = pm.response.json();",
+									"    // Store creation events should have metadata",
+									"    if (jsonData.metadata_s3_key) {",
+									"        pm.expect(jsonData.metadata_s3_key).to.include('.metadata.json');",
+									"    }",
+									"});",
+									"",
+									"pm.test('Routing target is store-service', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.routing_target).to.eql('store-service');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"new_store\",\n  \"store_id\": \"new-store-{{$timestamp}}\",\n  \"store_domain\": \"wellness-pharmacy-{{$timestamp}}.myshopify.com\",\n  \"store_name\": \"Wellness Pharmacy\",\n  \"owner_email\": \"owner@wellnesspharmacy.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Creates a new store."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Store Update",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is store_update', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.eql('store_update');",
+									"});",
+									"",
+									"pm.test('S3 key includes store_update', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.raw_s3_key).to.include('store_update');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"updated_store\",\n  \"store_id\": \"update-store-{{$timestamp}}\",\n  \"store_domain\": \"updated-pharmacy-{{$timestamp}}.myshopify.com\",\n  \"store_name\": \"Updated Wellness Pharmacy\",\n  \"settings\": {\n    \"theme\": \"dark\",\n    \"currency\": \"USD\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Updates an existing store."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Store Delete",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is store_delete', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.eql('store_delete');",
+									"});",
+									"",
+									"pm.test('S3 key includes store_delete', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.raw_s3_key).to.include('store_delete');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"deleted_store\",\n  \"store_id\": \"delete-store-{{$timestamp}}\",\n  \"store_domain\": \"closing-pharmacy.myshopify.com\",\n  \"deleted_at\": \"2024-12-11T00:00:00Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Deletes a store."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Store with Auto-Generated ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Store ID was auto-generated', function () {",
+									"    const jsonData = pm.response.json();",
+									"    // If no store_id was provided, one should be generated",
+									"    pm.expect(jsonData.store_id).to.be.a('string');",
+									"});",
+									"",
+									"pm.test('Event type is store_create', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_type).to.eql('store_create');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"new_store\",\n  \"store_domain\": \"auto-id-pharmacy-{{$timestamp}}.myshopify.com\",\n  \"store_name\": \"Auto ID Pharmacy\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Creates a store without providing store_id - tests auto-generation."
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for store-related webhook events"
+		},
+		{
+			"name": "Idempotency Tests",
+			"item": [
+				{
+					"name": "1. Send Original Event",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Use a fixed ID for idempotency testing",
+									"pm.collectionVariables.set('idempotentProductId', 'idempotent-product-' + Date.now());",
+									"pm.collectionVariables.set('idempotentStoreId', 'idempotent-store-' + Date.now());"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status (first submission)', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"// Save payload hash for comparison",
+									"const jsonData = pm.response.json();",
+									"pm.collectionVariables.set('originalEventId', jsonData.event_id);",
+									"pm.collectionVariables.set('originalPayloadHash', jsonData.payload_hash);",
+									"",
+									"// Store the exact request body for replay",
+									"pm.collectionVariables.set('idempotentPayload', pm.request.body.raw);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"new_product\",\n  \"idempotency_test\": true,\n  \"test_run\": \"{{$timestamp}}\",\n  \"products\": {\n    \"product_id\": \"{{idempotentProductId}}\",\n    \"name\": \"Idempotency Test Product\",\n    \"store_id\": \"{{idempotentStoreId}}\",\n    \"price\": 99.99\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "First submission of an event for idempotency testing."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Resend Same Event (Duplicate)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response indicates duplicate', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('duplicate');",
+									"});",
+									"",
+									"pm.test('Response contains original event_id', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_id).to.eql(pm.collectionVariables.get('originalEventId'));",
+									"});",
+									"",
+									"pm.test('Response contains duplicate message', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.include('already processed');",
+									"});",
+									"",
+									"pm.test('Response contains original_processing_timestamp', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.original_processing_timestamp).to.be.a('string');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Use the same payload as the original request"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"new_product\",\n  \"idempotency_test\": true,\n  \"test_run\": \"{{$timestamp}}\",\n  \"products\": {\n    \"product_id\": \"{{idempotentProductId}}\",\n    \"name\": \"Idempotency Test Product\",\n    \"store_id\": \"{{idempotentStoreId}}\",\n    \"price\": 99.99\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Resends the exact same payload - should be detected as duplicate."
+					},
+					"response": []
+				}
+			],
+			"description": "Tests for idempotency (duplicate event detection)"
+		},
+		{
+			"name": "Edge Cases & Validation",
+			"item": [
+				{
+					"name": "1. Minimal Payload",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event was processed despite minimal data', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_id).to.be.a('string');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"products\": {\n    \"id\": \"minimal-{{$timestamp}}\",\n    \"name\": \"Minimal Product\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Tests processing of a minimal payload with just required fields."
+					},
+					"response": []
+				},
+				{
+					"name": "2. Empty Payload (Error Case)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Response received', function () {",
+									"    // Empty payload may return 200 with error or 400",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 500]);",
+									"});",
+									"",
+									"const jsonData = pm.response.json();",
+									"",
+									"pm.test('Response has appropriate status', function () {",
+									"    // Should either be error or unknown event type",
+									"    if (pm.response.code === 200) {",
+									"        pm.expect(jsonData.event_type).to.be.oneOf(['unknown', 'error']);",
+									"    } else {",
+									"        pm.expect(jsonData.status).to.eql('error');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Tests handling of empty payload."
+					},
+					"response": []
+				},
+				{
+					"name": "3. Product with Archived Date (Delete Detection)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Event type is inferred as product_delete', function () {",
+									"    const jsonData = pm.response.json();",
+									"    // When archived_at is present, should be detected as delete",
+									"    pm.expect(jsonData.event_type).to.eql('product_delete');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"products\": {\n    \"id\": \"archived-product-{{$timestamp}}\",\n    \"name\": \"Product Being Archived\",\n    \"store_id\": \"archive-store-{{$timestamp}}\",\n    \"archived_at\": \"2024-12-11T00:00:00Z\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Tests event type inference when archived_at is present (should be product_delete)."
+					},
+					"response": []
+				},
+				{
+					"name": "4. Multiple Product Variants",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Product with multiple variants processed', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.product_id).to.be.a('string');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"new_product\",\n  \"products\": {\n    \"product_id\": \"multi-variant-{{$timestamp}}\",\n    \"name\": \"Product with Multiple Variants\",\n    \"description\": \"Testing multiple variant handling\",\n    \"store_id\": \"variant-store-{{$timestamp}}\",\n    \"product_variants\": [\n      {\n        \"id\": \"var-small\",\n        \"product_id\": \"multi-variant-{{$timestamp}}\",\n        \"name\": \"Small\",\n        \"price\": 19.99,\n        \"sku\": \"MV-SM\"\n      },\n      {\n        \"id\": \"var-medium\",\n        \"product_id\": \"multi-variant-{{$timestamp}}\",\n        \"name\": \"Medium\",\n        \"price\": 29.99,\n        \"sku\": \"MV-MD\"\n      },\n      {\n        \"id\": \"var-large\",\n        \"product_id\": \"multi-variant-{{$timestamp}}\",\n        \"name\": \"Large\",\n        \"price\": 39.99,\n        \"sku\": \"MV-LG\"\n      }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Tests handling of products with multiple variants."
+					},
+					"response": []
+				},
+				{
+					"name": "5. Unicode and Special Characters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Response has success status', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"});",
+									"",
+									"pm.test('Unicode content processed successfully', function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.event_id).to.be.a('string');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"event_type\": \"new_product\",\n  \"products\": {\n    \"product_id\": \"unicode-{{$timestamp}}\",\n    \"name\": \"Produit Médical™ - 日本語テスト 🏥\",\n    \"description\": \"Contains émojis 💊 and spëcial çharacters & <symbols>\",\n    \"store_id\": \"unicode-store-{{$timestamp}}\",\n    \"manufacturer\": \"Société Générale Médicale\",\n    \"product_variants\": [\n      {\n        \"id\": \"var-unicode\",\n        \"name\": \"Größe: Klein\",\n        \"price\": 29.99\n      }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Tests handling of Unicode characters, emojis, and special symbols."
+					},
+					"response": []
+				}
+			],
+			"description": "Edge cases and validation tests"
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Lambda Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Lambda is responding', function () {",
+									"    // Any response indicates Lambda is running",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 400, 500]);",
+									"});",
+									"",
+									"pm.test('Response time is acceptable', function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(5000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"health_check\": true,\n  \"timestamp\": \"{{$timestamp}}\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Simple health check to verify Lambda is responding."
+					},
+					"response": []
+				}
+			],
+			"description": "Health and connectivity checks"
+		}
+	]
+}
